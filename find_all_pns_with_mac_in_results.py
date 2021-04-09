@@ -6,7 +6,7 @@ collection = pymongo.MongoClient("mongodb://QA-TestMongo.network.com:27017")['Te
 
 mac_field_reg = re.compile(r"mac", re.I)
 
-cursor = collection.find()
+cursor = collection.find({"_id": ObjectId('603863408c93930a91dfa528')})
 
 pn_set = set()
 
@@ -19,7 +19,7 @@ for entry in cursor:
             # matching_result = mac_field_reg.match(parameter)
             parameter_detail = entry['TestResults'][tc]['Test Runs'][0]['Parameters'][parameter]['Detail']
             if "mac" in parameter or (isinstance(parameter_detail, str) and "mac" in parameter_detail.lower()):
-                # print(parameter)
+                print(tc, parameter, entry['_id'])
                 pn_set.add(entry['PN'])
             if isinstance(parameter_detail, dict):
                 for key in parameter_detail.keys():

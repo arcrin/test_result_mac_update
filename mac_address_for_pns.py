@@ -1,7 +1,6 @@
 from product_info.mac import MAC
 import pymongo
 import re
-from product_info.mac import MAC
 from bson import ObjectId
 
 #%%
@@ -12,54 +11,33 @@ pn_set = \
         # 271762,
         # 301124, # duplicate MAC
         # 301126,
-        301604,
-        301605,
-        304603,
-        311149,
-        311183,
-        311596,
-        311601,
-        311602,
-        311700,
-        311701,
-        312619,
-        312646,
-        321146,
-        321147,
-        321148,
-        321152,
-        321180,
-        321181,
-        321183,
-        321184,
-        321185,
-        321600,
-        322615,
-        322616,
-        322619,
-        322620,
-        322621,
-        322623,
-        322624,
-        322640,
-        322642,
-        322643,
-        322646,
-        322650,
-        323053,
-        323054,
-        323230,
-        331730,
-        331731,
-        331732,
-        331733,
-        331734,
-        331735,
-        331738,
-        331739,
-        331740,
-        331741,
-        333007,
+        # 301604,
+        # 301605,
+        # 304603,
+        # 311149,
+        # 311183,
+        # 311596,
+        # 311700,  # TODO
+        # 311701,  # TODO
+        # 312619,
+        # 312646,
+        # 321147,
+        # 321152,
+        # 321181,
+        # 321183,
+        # 321184,
+        # 321185,
+        # 322619,
+        # 322621,
+        # 322623,
+        # 322624,
+        # 322640,
+        # 322646,
+        # 322650,
+        # 331738,
+        # 331739,
+        # 331740,
+        # 331741,
         333019,
         334669,
         335342,
@@ -169,22 +147,38 @@ mac_regular_expression = \
 
 collection = pymongo.MongoClient("mongodb://qa-testmongo.network.com:27017")["TestMFG"]["TestRecords3"]
 
-cursor = collection.find({"PN": 301604}).sort("Timestamp", -1)
+cursor = collection.find({"PN": 333019}).sort("Timestamp", -1)
 
 flag = False
 
 for entry in cursor:
-    oid_mac_map[entry['_id']] = {"mac_location": "", "mac_address": ""}
+    mac_address_list = []
+    oid_mac_map[entry['_id']] = {"mac_location": "", "mac_address": "", "serial_number": entry['SerialNumber']}
+    # print(entry['_id'])
     for tc in entry["TestResults"]:
         if not flag:
             for parameter in entry['TestResults'][tc]['Test Runs'][0]['Parameters']:
                 matching_result = mac_filed_reg.search(parameter)
                 parameter_detail = entry['TestResults'][tc]['Test Runs'][0]['Parameters'][parameter]['Detail']
                 if matching_result:
-                    mac_address = MAC(entry['TestResults'][tc]['Test Runs'][0]['Parameters'][parameter]['Measured'])
+                    # print(tc)
+                    mac_address = entry['TestResults'][tc]['Test Runs'][0]['Parameters'][parameter]['Measured']
+                    # print(mac_address)
+                    if mac_address == "":
+                        print("empty MAC address")
+                    elif isinstance(mac_address, list):
+                        for address in mac_address:
+                            mac_address_list.append(str(MAC(address)))
+                    elif mac_address == "FFFFFFFF":
+                        print("Invalid MAC FFFFFFFF")
+                    else:
+                        try:
+                            mac_address_list.append(str(MAC(mac_address)))
+                        except ValueError as e:
+                            print("Invalid MAC address", mac_address)
                     print("Parameter: ", tc, parameter, entry['SerialNumber'], entry['_id'], str(mac_address))
                     oid_mac_map[entry['_id']]['mac_location'] = "parameter"
-                    oid_mac_map[entry['_id']]['mac_address'] = str(mac_address)
+                    oid_mac_map[entry['_id']]['mac_address'] = mac_address_list
                     flag = True
                 if isinstance(parameter_detail, str) and "mac" in parameter_detail.lower():
                     if "exception" in parameter_detail.lower():
@@ -199,17 +193,20 @@ for entry in cursor:
                                                           ['Parameters'][parameter]['Detail'])
                             oid_mac_map[entry['_id']]["mac_location"] = "detail"
                             oid_mac_map[entry['_id']]["mac_address"] = str(mac_address)
-                        print("No Match Detail: ", tc, parameter, entry['_id'], entry['TestResults'][tc]['Test Runs'][0]
-                                                          ['Parameters'][parameter]['Detail'])
-                        flag = True
+                            flag = True
+                        else:
+                            print("No Match Detail: ", tc, parameter, entry['_id'],
+                                  # entry['TestResults'][tc]['Test Runs'][0]
+                                  # ['Parameters'][parameter]['Detail']
+                                  )
     flag = False
-#%%
+
 oid_with_mac = []
 oid_without_mac = []
 for oid in oid_mac_map:
-    if not oid_mac_map[oid]['mac_address'] == '':
+    if oid_mac_map[oid]['mac_address']:
         oid_with_mac.append(oid)
-        print(str(oid), oid_mac_map[oid]['mac_address'])
+        print(str(oid), oid_mac_map[oid]['serial_number'], oid_mac_map[oid]['mac_address'])
     else:
         oid_without_mac.append(oid)
 
@@ -222,7 +219,8 @@ for oid in oid_mac_map:
 for oid in oid_mac_map:
     mac_address = oid_mac_map[oid]['mac_address']
     doc_entry = collection.find({"_id": oid})[0]
-    if mac_address == "":
+    if not mac_address:
         collection.update_one({"_id": oid}, {"$set": {"Unique Info": {}}})
     else:
-        collection.update_one({"_id": oid}, {"$set": {"Unique Info.MAC Address": [mac_address]}})
+        collection.update_one({"_id": oid}, {"$set": {"Unique Info.MAC Address": mac_address}})
+
