@@ -4,14 +4,14 @@ import re
 from product_info.mac import MAC
 from bson import ObjectId
 
-
+#%%
 pn_set = \
     {
         # 271759,
         # 271761,
         # 271762,
         # 301124, # duplicate MAC
-        301126,
+        # 301126,
         301604,
         301605,
         304603,
@@ -159,6 +159,7 @@ pn_set = \
         375709,
         375710}
 
+#%%
 oid_mac_map = dict()
 
 mac_filed_reg = re.compile(r"mac", re.I)
@@ -168,7 +169,7 @@ mac_regular_expression = \
 
 collection = pymongo.MongoClient("mongodb://qa-testmongo.network.com:27017")["TestMFG"]["TestRecords3"]
 
-cursor = collection.find({"PN": 301124}).sort("Timestamp", -1)
+cursor = collection.find({"PN": 301604}).sort("Timestamp", -1)
 
 flag = False
 
@@ -213,10 +214,10 @@ for oid in oid_mac_map:
         oid_without_mac.append(oid)
 
 #%%
-first_id = list(oid_mac_map.keys())[0]
-mac_address = oid_mac_map[first_id]['mac_address']
-entry = collection.find({"_id": first_id})[0]
-collection.update_one({"_id": first_id}, {"$set": {"Unique Info.MAC Address": [mac_address]}})
+# first_id = list(oid_mac_map.keys())[0]
+# mac_address = oid_mac_map[first_id]['mac_address']
+# entry = collection.find({"_id": first_id})[0]
+# collection.update_one({"_id": first_id}, {"$set": {"Unique Info.MAC Address": [mac_address]}})
 
 for oid in oid_mac_map:
     mac_address = oid_mac_map[oid]['mac_address']
