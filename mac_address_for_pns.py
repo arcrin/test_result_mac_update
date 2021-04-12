@@ -38,23 +38,21 @@ pn_set = \
         # 331739,
         # 331740,
         # 331741,
-        333019,
-        334669,
-        335342,
-        335827,
-        335881,
-        337001,
-        337009,
-        337016,
-        337022,
-        337025,
-        337028,
-        337061,
-        337082,
-        337106,
-        337112,
-        337118,
-        337121,
+        # 333019, # TODO: possibly used wrong regx pattern
+        # 334669,
+        # 335342,
+        # 337001,
+        # 337009,
+        # 337016,
+        # 337022,
+        # 337025,
+        # 337028,
+        # 337061,
+        # 337082,
+        # 337106,
+        # 337112,
+        # 337118,
+        # 337121,
         337122,
         337123,
         337124,
@@ -140,14 +138,18 @@ pn_set = \
 #%%
 oid_mac_map = dict()
 
-mac_filed_reg = re.compile(r"mac", re.I)
+mac_field_reg = re.compile(r"mac", re.I)
 
 mac_regular_expression = \
- re.compile(r"(00:40:AE:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2})", re.IGNORECASE)
+ re.compile(r"(?:0040AE|00:40:AE:)?(?!000000|00:00:00|00:40:ae)[0-9a-f]{2}:?[0-9a-f]{2}:?[0-9a-f]{2}(?<!FFFFFF)", re.IGNORECASE)
+
+# mac_regular_expression = \
+#     re.compile(r"(?:0040AE|00:40:AE:)?(?!000000|00:00:00|00:40:ae)([0-9a-f]{2}):?"
+#                r"([0-9a-f]{2}):?([0-9a-f]{2})(\s|$)", re.IGNORECASE)
 
 collection = pymongo.MongoClient("mongodb://qa-testmongo.network.com:27017")["TestMFG"]["TestRecords3"]
 
-cursor = collection.find({"PN": 333019}).sort("Timestamp", -1)
+cursor = collection.find({"PN": 337122}).sort("Timestamp", -1)
 
 flag = False
 
@@ -158,7 +160,7 @@ for entry in cursor:
     for tc in entry["TestResults"]:
         if not flag:
             for parameter in entry['TestResults'][tc]['Test Runs'][0]['Parameters']:
-                matching_result = mac_filed_reg.search(parameter)
+                matching_result = mac_field_reg.search(parameter)
                 parameter_detail = entry['TestResults'][tc]['Test Runs'][0]['Parameters'][parameter]['Detail']
                 if matching_result:
                     # print(tc)
@@ -172,27 +174,32 @@ for entry in cursor:
                     elif mac_address == "FFFFFFFF":
                         print("Invalid MAC FFFFFFFF")
                     else:
+                        print(entry['_id'], tc, parameter)
                         try:
+                            if isinstance(mac_address, str):
+                                mac_address = mac_regular_expression.search(mac_address).group(0)
                             mac_address_list.append(str(MAC(mac_address)))
                         except ValueError as e:
-                            print("Invalid MAC address", mac_address)
-                    print("Parameter: ", tc, parameter, entry['SerialNumber'], entry['_id'], str(mac_address))
+                            print("Invalid MAC address", tc, parameter, mac_address)
+                    print("Parameter: ", tc, parameter, entry['SerialNumber'], entry['_id'], mac_address_list)
                     oid_mac_map[entry['_id']]['mac_location'] = "parameter"
                     oid_mac_map[entry['_id']]['mac_address'] = mac_address_list
-                    flag = True
+                    if mac_address_list:
+                        flag = True
                 if isinstance(parameter_detail, str) and "mac" in parameter_detail.lower():
                     if "exception" in parameter_detail.lower():
                         continue
                     if not flag:
                         mac_address = \
-                            mac_regular_expression.search(entry['TestResults'][tc]['Test Runs'][0]
+                            mac_regular_expression.findall(entry['TestResults'][tc]['Test Runs'][0]
                                                           ['Parameters'][parameter]['Detail'])
                         if mac_address:
-                            mac_address = MAC(mac_address.group(0))
+                            for address in mac_address:
+                                mac_address_list.append(str(MAC(address)))
                             print("Match Detail: ", tc, parameter, entry['_id'], entry['TestResults'][tc]['Test Runs'][0]
                                                           ['Parameters'][parameter]['Detail'])
                             oid_mac_map[entry['_id']]["mac_location"] = "detail"
-                            oid_mac_map[entry['_id']]["mac_address"] = str(mac_address)
+                            oid_mac_map[entry['_id']]["mac_address"] = mac_address_list
                             flag = True
                         else:
                             print("No Match Detail: ", tc, parameter, entry['_id'],
@@ -200,15 +207,18 @@ for entry in cursor:
                                   # ['Parameters'][parameter]['Detail']
                                   )
     flag = False
+    print("---")
 
 oid_with_mac = []
 oid_without_mac = []
 for oid in oid_mac_map:
     if oid_mac_map[oid]['mac_address']:
         oid_with_mac.append(oid)
-        print(str(oid), oid_mac_map[oid]['serial_number'], oid_mac_map[oid]['mac_address'])
+        # print(str(oid), oid_mac_map[oid]['serial_number'], oid_mac_map[oid]['mac_address'])
     else:
         oid_without_mac.append(oid)
+
+print(oid_with_mac)
 
 #%%
 # first_id = list(oid_mac_map.keys())[0]
