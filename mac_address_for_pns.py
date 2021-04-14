@@ -39,7 +39,7 @@ pn_set = \
         # 331740,
         # 331741,
         # 333019, # TODO: possibly used wrong regx pattern
-        # 334669,
+        # 334669, # start of eznt
         # 335342,
         # 337001,
         # 337009,
@@ -53,43 +53,43 @@ pn_set = \
         # 337112,
         # 337118,
         # 337121,
-        337122,
-        337123,
-        337124,
-        337125,
-        337127,
-        337136,
-        337139,
-        337141,
-        337142,
-        337143,
-        337144,
-        337148,
-        337172,
-        337173,
-        337181,
-        337183,
-        337184,
-        337187,
-        337190,
-        337191,
-        337196,
-        337199,
-        337200,
-        337202,
-        337205,
-        337211,
-        337215,
-        337217,
-        337226,
-        337236,
-        337238,
-        337241,
-        337243,
-        337247,
-        337249,
-        337253,
-        337256,
+        # 337122,
+        # 337123,
+        # 337124,
+        # 337125,
+        # 337127,
+        # 337136,
+        # 337139,
+        # 337141,
+        # 337142,
+        # 337143,
+        # 337144,
+        # 337148,
+        # 337172,
+        # 337173,
+        # 337181,
+        # 337183,
+        # 337184,
+        # 337187,
+        # 337190, # no serial number, to fix later
+        # 337191,
+        # 337196,
+        # 337199,
+        # 337200,
+        # 337202, # anomoly 5e28c3d7c0eaeba74afb9d33
+        # 337205, # no serial number
+        # 337211, # no serial number
+        # 337215,
+        # 337217, # no serial number
+        # 337226,
+        # 337236,
+        # 337238,
+        # 337241,
+        # 337243,
+        # 337247,
+        # 337249,
+        # 337253,
+        # 337256,
         337262,
         337263,
         337271,
@@ -97,14 +97,14 @@ pn_set = \
         337303,
         337307,
         337311,
-        337316,
+        337316, # missing serial number
         337318,
         337319,
         337322,
         337325,
-        337331,
-        337337,
-        337346,
+        337331, # missing serial number
+        337337, # missing serial number
+        337346, # missing serial number
         350007,
         350028,
         350029,
@@ -133,7 +133,35 @@ pn_set = \
         375702,
         375704,
         375709,
-        375710}
+        375710
+    }
+
+pn_list = [
+        350007,
+        350028,
+        350029,
+        350031,
+        350036,
+        350037,
+        350038,
+        350188,
+        350201,
+        350202,
+        350203,
+        350205,
+        350469,
+        350473,
+        350505,
+        350609,
+        350666,
+        350791,
+        375700,
+        375701,
+        375702,
+        375704,
+        375709,
+        375710
+]
 
 #%%
 oid_mac_map = dict()
@@ -148,44 +176,54 @@ mac_regular_expression = \
 #                r"([0-9a-f]{2}):?([0-9a-f]{2})(\s|$)", re.IGNORECASE)
 
 collection = pymongo.MongoClient("mongodb://qa-testmongo.network.com:27017")["TestMFG"]["TestRecords3"]
-
-cursor = collection.find({"PN": 337122}).sort("Timestamp", -1)
+# for pn in pn_list:
+cursor = collection.find({"_id": ObjectId('5e2b1f141b7ef520eccda650')}).sort("Timestamp", -1)
 
 flag = False
 
 for entry in cursor:
-    mac_address_list = []
+    mac_address_list = set()
     oid_mac_map[entry['_id']] = {"mac_location": "", "mac_address": "", "serial_number": entry['SerialNumber']}
     # print(entry['_id'])
     for tc in entry["TestResults"]:
-        if not flag:
+        # if not flag:
+        if True:
             for parameter in entry['TestResults'][tc]['Test Runs'][0]['Parameters']:
                 matching_result = mac_field_reg.search(parameter)
                 parameter_detail = entry['TestResults'][tc]['Test Runs'][0]['Parameters'][parameter]['Detail']
                 if matching_result:
                     # print(tc)
                     mac_address = entry['TestResults'][tc]['Test Runs'][0]['Parameters'][parameter]['Measured']
-                    # print(mac_address)
+                    # print(mac_ address)
                     if mac_address == "":
                         print("empty MAC address")
                     elif isinstance(mac_address, list):
                         for address in mac_address:
-                            mac_address_list.append(str(MAC(address)))
+                            mac_address_list.add(str(MAC(address)))
                     elif mac_address == "FFFFFFFF":
                         print("Invalid MAC FFFFFFFF")
+                    elif isinstance(mac_address, bool):
+                        print("Invalid MAC: boolean format")
+                    elif isinstance(mac_address, str) and mac_address.startswith("AE"):
+                        print("Invalid MAC format starts with AE")
                     else:
                         print(entry['_id'], tc, parameter)
                         try:
                             if isinstance(mac_address, str):
-                                mac_address = mac_regular_expression.search(mac_address).group(0)
-                            mac_address_list.append(str(MAC(mac_address)))
+                                try:
+                                    mac_address = int(mac_address)
+                                    mac_address = MAC(mac_address)
+                                except ValueError:
+                                    mac_address = mac_regular_expression.search(mac_address).group(0)
+                            mac_address_list.add(str(MAC(mac_address)))
                         except ValueError as e:
                             print("Invalid MAC address", tc, parameter, mac_address)
                     print("Parameter: ", tc, parameter, entry['SerialNumber'], entry['_id'], mac_address_list)
                     oid_mac_map[entry['_id']]['mac_location'] = "parameter"
                     oid_mac_map[entry['_id']]['mac_address'] = mac_address_list
-                    if mac_address_list:
-                        flag = True
+                    # if mac_address_list:
+                    #     flag = True
+
                 if isinstance(parameter_detail, str) and "mac" in parameter_detail.lower():
                     if "exception" in parameter_detail.lower():
                         continue
@@ -195,18 +233,20 @@ for entry in cursor:
                                                           ['Parameters'][parameter]['Detail'])
                         if mac_address:
                             for address in mac_address:
-                                mac_address_list.append(str(MAC(address)))
-                            print("Match Detail: ", tc, parameter, entry['_id'], entry['TestResults'][tc]['Test Runs'][0]
-                                                          ['Parameters'][parameter]['Detail'])
+                                if not address.lower().startswith("ae") and address.lower().startswith("00"):
+                                    mac_address_list.add(str(MAC(address)))
+                            if mac_address_list:
+                                print("Match Detail: ", tc, parameter, entry['_id'], entry['TestResults'][tc]['Test Runs'][0]
+                                                              ['Parameters'][parameter]['Detail'])
                             oid_mac_map[entry['_id']]["mac_location"] = "detail"
                             oid_mac_map[entry['_id']]["mac_address"] = mac_address_list
-                            flag = True
+                            # flag = True
                         else:
                             print("No Match Detail: ", tc, parameter, entry['_id'],
                                   # entry['TestResults'][tc]['Test Runs'][0]
                                   # ['Parameters'][parameter]['Detail']
                                   )
-    flag = False
+    # flag = False
     print("---")
 
 oid_with_mac = []
@@ -218,7 +258,12 @@ for oid in oid_mac_map:
     else:
         oid_without_mac.append(oid)
 
-print(oid_with_mac)
+print(len(oid_with_mac))
+for oid in oid_mac_map:
+    print(oid,
+          oid_mac_map[oid]['mac_address'],
+          oid_mac_map[oid]['serial_number'],
+          )
 
 #%%
 # first_id = list(oid_mac_map.keys())[0]
@@ -227,7 +272,7 @@ print(oid_with_mac)
 # collection.update_one({"_id": first_id}, {"$set": {"Unique Info.MAC Address": [mac_address]}})
 
 for oid in oid_mac_map:
-    mac_address = oid_mac_map[oid]['mac_address']
+    mac_address = list(oid_mac_map[oid]['mac_address'])
     doc_entry = collection.find({"_id": oid})[0]
     if not mac_address:
         collection.update_one({"_id": oid}, {"$set": {"Unique Info": {}}})
