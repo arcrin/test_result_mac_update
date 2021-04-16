@@ -18,7 +18,7 @@ pn_set = \
         # 311183,
         # 311596,
         # 311700,  # TODO
-        # 311701,  # TODO
+        311701,  # TODO
         # 312619,
         # 312646,
         # 321147,
@@ -71,16 +71,16 @@ pn_set = \
         # 337183,
         # 337184,
         # 337187,
-        # 337190, # no serial number, to fix later
+        # 337190,
         # 337191,
         # 337196,
         # 337199,
         # 337200,
         # 337202, # anomoly 5e28c3d7c0eaeba74afb9d33
-        # 337205, # no serial number
-        # 337211, # no serial number
+        # 337205,
+        # 337211,
         # 337215,
-        # 337217, # no serial number
+        # 337217,
         # 337226,
         # 337236,
         # 337238,
@@ -97,70 +97,39 @@ pn_set = \
         337303,
         337307,
         337311,
-        337316, # missing serial number
+        337316,
         337318,
         337319,
         337322,
         337325,
-        337331, # missing serial number
-        337337, # missing serial number
-        337346, # missing serial number
+        337331,
+        337337,
+        337346,
         350007,
         350028,
         350029,
         350031,
-        350036,
         350037,
         350038,
-        350188,
-        350201,
-        350202,
-        350203,
         350205,
-        350469,
-        350473,
-        350505,
-        350609,
-        350666,
+        350666, # skip chip id test case
         350791,
         350892,
         350896,
         350899,
         350900,
         350903,
-        375700,
-        375701,
-        375702,
-        375704,
-        375709,
-        375710
     }
 
 pn_list = [
-        350007,
-        350028,
-        350029,
-        350031,
-        350036,
-        350037,
-        350038,
-        350188,
-        350201,
-        350202,
-        350203,
-        350205,
-        350469,
-        350473,
-        350505,
-        350609,
-        350666,
-        350791,
-        375700,
-        375701,
-        375702,
-        375704,
-        375709,
-        375710
+        # 350007,
+        # 350028,
+        # 350029,
+        # 350037,
+        # 350038,
+        # 350205,
+        # 350666, # skip chip id test case
+        # 350791,
 ]
 
 #%%
@@ -177,21 +146,20 @@ mac_regular_expression = \
 
 collection = pymongo.MongoClient("mongodb://qa-testmongo.network.com:27017")["TestMFG"]["TestRecords3"]
 # for pn in pn_list:
-cursor = collection.find({"_id": ObjectId('5e2b1f141b7ef520eccda650')}).sort("Timestamp", -1)
+cursor = collection.find({"PN": 311701}).sort("Timestamp", -1)
 
 flag = False
 
 for entry in cursor:
-    mac_address_list = set()
-    oid_mac_map[entry['_id']] = {"mac_location": "", "mac_address": "", "serial_number": entry['SerialNumber']}
-    # print(entry['_id'])
-    for tc in entry["TestResults"]:
-        # if not flag:
-        if True:
+    if 'Unique Info' not in entry:
+        mac_address_list = set()
+        oid_mac_map[entry['_id']] = {"mac_location": "", "mac_address": "", "serial_number": entry['SerialNumber']}
+        # print(entry['_id'])
+        for tc in entry["TestResults"]:
             for parameter in entry['TestResults'][tc]['Test Runs'][0]['Parameters']:
                 matching_result = mac_field_reg.search(parameter)
                 parameter_detail = entry['TestResults'][tc]['Test Runs'][0]['Parameters'][parameter]['Detail']
-                if matching_result:
+                if matching_result and not parameter == 'Boot Log':
                     # print(tc)
                     mac_address = entry['TestResults'][tc]['Test Runs'][0]['Parameters'][parameter]['Measured']
                     # print(mac_ address)
@@ -224,7 +192,8 @@ for entry in cursor:
                     # if mac_address_list:
                     #     flag = True
 
-                if isinstance(parameter_detail, str) and "mac" in parameter_detail.lower():
+                if isinstance(parameter_detail, str) and "mac" in parameter_detail.lower() and not tc == 'Chip IDs' \
+                        and not parameter == 'Boot Log':
                     if "exception" in parameter_detail.lower():
                         continue
                     if not flag:
