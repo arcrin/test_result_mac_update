@@ -146,7 +146,7 @@ mac_regular_expression = \
 
 collection = pymongo.MongoClient("mongodb://qa-testmongo.network.com:27017")["TestMFG"]["TestRecords3"]
 # for pn in pn_list:
-cursor = collection.find({"PN": 311701}).sort("Timestamp", -1)
+cursor = collection.find({"_id": ObjectId("606f1c09a6333ae507e8bddc")}).sort("Timestamp", -1)
 
 flag = False
 

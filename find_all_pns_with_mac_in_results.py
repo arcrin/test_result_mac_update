@@ -6,7 +6,7 @@ collection = pymongo.MongoClient("mongodb://QA-TestMongo.network.com:27017")['Te
 
 mac_field_reg = re.compile(r"mac", re.I)
 
-cursor = collection.find({"_id": ObjectId('6063579b1bf7e040ab05d74b')})
+cursor = collection.find({"_id": ObjectId('5f1f1982b55ab37bc7ced9f6')})
 
 pn_set = set()
 
